@@ -2,6 +2,7 @@ import { createDirectory, fileExists, readFile, writeFile } from "@/commands/fs"
 import i18n from "@/i18n"
 import type { LintResult } from "@/lib/lint"
 import type { NovelReviewResult } from "./review-adapter"
+import { createDefaultRevisionFeedback } from "./revision-feedback-defaults"
 
 export interface NovelRevisionFeedback {
   mustFix: string[]
@@ -40,11 +41,7 @@ const REVISION_FEEDBACK_FILENAME = "revision-feedback.json"
 let currentRevisionFeedback: NovelRevisionFeedback = createEmptyRevisionFeedback()
 
 export function createEmptyRevisionFeedback(): NovelRevisionFeedback {
-  return {
-    mustFix: [],
-    shouldImprove: [],
-    carryToNextChapter: [],
-  }
+  return createDefaultRevisionFeedback()
 }
 
 export function pickRevisionFeedbackFromReviewResults(results: NovelReviewResult[]): NovelRevisionFeedback {

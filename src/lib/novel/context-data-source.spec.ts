@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { DataSourceRegistry, type DataSource, type ContextLoadContext } from "./context-data-source"
+import { revisionFeedbackDataSource } from "./context-data-sources"
 
 const context: ContextLoadContext = {
   projectPath: "E:/Novel",
@@ -50,5 +51,30 @@ describe("DataSourceRegistry", () => {
 
     expect(loaded.fallbackRecentSummaries).toEqual([])
     expect(loaded.outline).toBe("")
+  })
+
+  it("replaces missing revision feedback with object-shaped defaults", async () => {
+    const registry = new DataSourceRegistry()
+    registry.register({
+      name: "revisionFeedback",
+      priority: 1,
+      load: async () => undefined,
+    })
+
+    const loaded = await registry.loadAll(context)
+
+    expect(loaded.revisionFeedback).toEqual({
+      mustFix: [],
+      shouldImprove: [],
+      carryToNextChapter: [],
+    })
+  })
+
+  it("returns object-shaped revision feedback when outline generation has no chapter", async () => {
+    await expect(revisionFeedbackDataSource.load(context)).resolves.toEqual({
+      mustFix: [],
+      shouldImprove: [],
+      carryToNextChapter: [],
+    })
   })
 })

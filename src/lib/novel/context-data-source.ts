@@ -1,3 +1,5 @@
+import { createDefaultRevisionFeedback } from "./revision-feedback-defaults"
+
 /**
  * 上下文数据源抽象层
  * 用于统一管理和加载各种上下文数据源
@@ -98,7 +100,7 @@ export class DataSourceRegistry {
 
     // 转换为记录对象
     return results.reduce((acc, { name, value }) => {
-      acc[name] = value
+      acc[name] = value === undefined ? this.getDefaultValue(name) : value
       return acc
     }, {} as Record<string, any>)
   }
@@ -128,7 +130,7 @@ export class DataSourceRegistry {
       writingStyle: "",
       searchResults: "",
       graphSearchResults: "",
-      revisionFeedback: [],
+      revisionFeedback: createDefaultRevisionFeedback(),
       cognitionText: "",
       soulDoc: "",
       characterAuras: "",
