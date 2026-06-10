@@ -119,31 +119,32 @@ function localLlmOriginHeader(): Record<string, string> {
   return { Origin: "http://localhost" }
 }
 
-function isLocalOrPrivateHttpEndpoint(endpoint: string): boolean {
+function isLoopbackHttpEndpoint(endpoint: string): boolean {
   try {
     const parsed = new URL(endpoint)
     const host = parsed.hostname.toLowerCase()
     if (host === "localhost" || host.endsWith(".localhost")) return true
     if (host === "127.0.0.1" || host === "::1" || host === "[::1]") return true
-    if (/^10\./.test(host)) return true
-    if (/^192\.168\./.test(host)) return true
-    const match = host.match(/^172\.(\d+)\./)
-    if (match) {
-      const second = Number(match[1])
-      if (second >= 16 && second <= 31) return true
-    }
     return false
   } catch {
     return /^(https?:\/\/)?(localhost|127\.0\.0\.1)([:/]|$)/i.test(endpoint)
   }
 }
 
-export function getCustomCompatibleHeaders(apiKey: string, url: string): Record<string, string> {
+export function withCustomOriginHeader(headers: Record<string, string>, url: string): Record<string, string> {
+  // 自定义网关可能部署在局域网或远端，不能把桌面 WebView Origin 透传过去；部分中转站会因此直接 403。
+  // 只有真正 loopback 的本机端点保留 localhost Origin，用于兼容 Ollama/LM Studio 这类本地服务。
   return {
+    ...headers,
+    ...(isLoopbackHttpEndpoint(url) ? localLlmOriginHeader() : { Origin: "" }),
+  }
+}
+
+export function getCustomCompatibleHeaders(apiKey: string, url: string): Record<string, string> {
+  return withCustomOriginHeader({
     "Content-Type": JSON_CONTENT_TYPE,
     ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-    ...(isLocalOrPrivateHttpEndpoint(url) ? localLlmOriginHeader() : {}),
-  }
+  }, url)
 }
 
 function parseOpenAiLine(line: string): string | null {
@@ -803,7 +804,7 @@ export function getProviderConfig(config: LlmConfig): ProviderConfig {
         const url = buildAnthropicUrl(customEndpoint)
         return {
           url,
-          headers: buildAnthropicHeaders(apiKey, url),
+          headers: withCustomOriginHeader(buildAnthropicHeaders(apiKey, url), url),
           buildBody: (messages, overrides) => ({
             ...buildAnthropicBodyWithReasoning(config, messages, overrides),
             model,
@@ -847,7 +848,7 @@ export function getProviderConfig(config: LlmConfig): ProviderConfig {
               ? { "api-key": apiKey }
               : { Authorization: `Bearer ${apiKey}` }
             : {}),
-          ...(!azure && isLocalOrPrivateHttpEndpoint(url) ? localLlmOriginHeader() : {}),
+          ...(!azure ? withCustomOriginHeader({}, url) : {}),
         },
         buildBody: (messages, overrides) => {
           const body = buildOpenAiCompatibleBody(config, messages, overrides)
